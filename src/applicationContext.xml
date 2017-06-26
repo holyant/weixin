@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	- Middle tier application context definition for the image database.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-2.5.xsd
+				http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-2.5.xsd
+				http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-2.5.xsd
+				http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-2.5.xsd">
+
+	<bean id="dataSource"
+		class="org.apache.commons.dbcp.BasicDataSource">
+		<!-- 指定数据库的基本信息 -->
+		<property name="url" value="jdbc:mysql://localhost:3306/dang">
+		</property>
+		<property name="driverClassName"
+			value="com.mysql.jdbc.Driver">
+		</property>
+		<property name="username" value="root"></property>
+		<property name="password" value="fanghao"></property>
+		<!-- 连接池中的conn数量的控制 -->
+		<property name="maxActive" value="50"></property>
+		<property name="minIdle" value="5"></property>
+		<property name="initialSize" value="10"></property>
+		<property name="maxWait" value="5000"></property>
+		<property name="maxIdle" value="10"></property>
+	</bean>
+
+	<!-- spring针对事务的管理（jdbc、hibernate） -->
+	<!-- 1 指定事务管理器 -->
+	<bean id="transactionManager"
+		class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+		<property name="dataSource" ref="dataSource"></property>
+	</bean>
+	
+	  <!-- Spring提供的iBatis的SqlMap配置-->
+	  <bean id="sqlMapClient" class="org.springframework.orm.ibatis.SqlMapClientFactoryBean">
+	    <property name="configLocation" value="classpath:sql-map-config.xml"/>
+	    <property name="dataSource" ref="dataSource"/>
+	  </bean>
+	
+
+	<!-- 2 配置事务的特性（事务传播特性和事务的隔离级别） -->
+	<tx:advice id="txAdvice" transaction-manager="transactionManager">
+		<tx:attributes>
+			<tx:method name="find*" propagation="NOT_SUPPORTED"
+				isolation="READ_COMMITTED" read-only="true" />
+			<tx:method name="*" propagation="REQUIRED"
+				isolation="READ_COMMITTED" />
+		</tx:attributes>
+	</tx:advice>
+
+	<!-- 3  使用aop把事务配置到service层-->
+	<!-- 暂时没加service，先配置到dao层 -->
+	<aop:config>
+		<aop:pointcut id="curd"
+			expression="execution (* service..*.*(..))" />
+		<!-- 将事务的特性配置到切入点 -->
+		<aop:advisor advice-ref="txAdvice" pointcut-ref="curd" />
+	</aop:config>
+	
+	<bean id="helloDao" class="dao.impl.HelloDaoImpl">
+		<property name="dataSource" ref="dataSource"></property>
+		<property name="sqlMapClient" ref="sqlMapClient"/>
+	</bean>
+	<bean id="helloService" class="service.impl.HelloServiceImpl">
+		<property name="helloDao" ref="helloDao"></property>
+	</bean>
+	<bean id="helloAction" class="web.action.HelloWorldAction">
+		<property name="helloService" ref="helloService"></property>
+	</bean>
+</beans>
